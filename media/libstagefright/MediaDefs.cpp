@@ -67,6 +67,8 @@ const char *MEDIA_MIMETYPE_AUDIO_AAC_ADTS = "audio/aac-adts";
 const char *MEDIA_MIMETYPE_AUDIO_MSGSM = "audio/gsm";
 const char *MEDIA_MIMETYPE_AUDIO_AC3 = "audio/ac3";
 const char *MEDIA_MIMETYPE_AUDIO_EAC3 = "audio/eac3";
+const char *MEDIA_MIMETYPE_AUDIO_AC4 = "audio/ac4";
+const char *MEDIA_MIMETYPE_AUDIO_AC4_SYNC = "audio/ac4-sync";
 #ifdef DOLBY_ENABLE
 const char *MEDIA_MIMETYPE_AUDIO_EAC3_JOC = "audio/eac3-joc";
 #endif // DOLBY_END

@@ -69,6 +69,8 @@ extern const char *MEDIA_MIMETYPE_AUDIO_AAC_ADTS;
 extern const char *MEDIA_MIMETYPE_AUDIO_MSGSM;
 extern const char *MEDIA_MIMETYPE_AUDIO_AC3;
 extern const char *MEDIA_MIMETYPE_AUDIO_EAC3;
+extern const char *MEDIA_MIMETYPE_AUDIO_AC4;
+extern const char *MEDIA_MIMETYPE_AUDIO_AC4_SYNC;
 #ifdef DOLBY_ENABLE
 extern const char *MEDIA_MIMETYPE_AUDIO_EAC3_JOC;
 #endif // DOLBY_END

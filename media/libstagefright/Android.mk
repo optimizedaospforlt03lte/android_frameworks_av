@@ -60,12 +60,16 @@ LOCAL_SRC_FILES:=                         \
         VBRISeeker.cpp                    \
         VideoFrameScheduler.cpp           \
         WAVExtractor.cpp                  \
+        WAVEWriter.cpp                    \
         WVMExtractor.cpp                  \
         XINGSeeker.cpp                    \
         avc_utils.cpp                     \
+        FFMPEGSoftCodec.cpp               \
 
 LOCAL_C_INCLUDES:= \
         $(TOP)/frameworks/av/include/media/ \
+        $(TOP)/frameworks/av/media/libavextensions \
+        $(TOP)/frameworks/av/media/libstagefright/mpeg2ts \
         $(TOP)/frameworks/av/include/media/stagefright/timedtext \
         $(TOP)/frameworks/native/include/media/hardware \
         $(TOP)/frameworks/native/include/media/openmax \
@@ -100,7 +104,15 @@ LOCAL_SHARED_LIBRARIES := \
         libutils \
         libvorbisidec \
         libz \
-        libpowermanager
+        libpowermanager \
+
+ifeq ($(BOARD_CANT_REALLOCATE_OMX_BUFFERS),true)
+LOCAL_CFLAGS += -DBOARD_CANT_REALLOCATE_OMX_BUFFERS
+endif
+
+ifeq ($(TARGET_USE_AVC_BASELINE_PROFILE), true)
+LOCAL_CFLAGS += -DUSE_AVC_BASELINE_PROFILE
+endif
 
 LOCAL_STATIC_LIBRARIES := \
         libstagefright_color_conversion \
@@ -117,6 +129,8 @@ LOCAL_STATIC_LIBRARIES := \
         libFLAC \
         libmedia_helper \
 
+LOCAL_WHOLE_STATIC_LIBRARIES := libavextensions
+
 LOCAL_SHARED_LIBRARIES += \
         libstagefright_enc_common \
         libstagefright_avc_common \
@@ -124,16 +138,42 @@ LOCAL_SHARED_LIBRARIES += \
         libdl \
         libRScpp \
 
+ifeq ($(BOARD_USE_SAMSUNG_CAMERAFORMAT_NV21), true)
+# This needs flag requires the following string constant in
+# CameraParametersExtra.h:
+#
+# const char CameraParameters::PIXEL_FORMAT_YUV420SP_NV21[] = "nv21";
+LOCAL_CFLAGS += -DUSE_SAMSUNG_CAMERAFORMAT_NV21
+endif
+
+ifneq ($(TARGET_USES_MEDIA_EXTENSIONS),true)
+ifeq ($(TARGET_HAS_LEGACY_CAMERA_HAL1),true)
+LOCAL_CFLAGS += -DCAMCORDER_GRALLOC_SOURCE
+endif
+endif
+
 LOCAL_CFLAGS += -Wno-multichar -Werror -Wno-error=deprecated-declarations -Wall
+
+LOCAL_C_INCLUDES += $(call project-path-for,qcom-media)/mm-core/inc
 
 # enable experiments only in userdebug and eng builds
 ifneq (,$(filter userdebug eng,$(TARGET_BUILD_VARIANT)))
 LOCAL_CFLAGS += -DENABLE_STAGEFRIGHT_EXPERIMENTS
 endif
 
+ifeq ($(call is-vendor-board-platform,QCOM),true)
+ifeq ($(strip $(AUDIO_FEATURE_ENABLED_EXTN_FLAC_DECODER)),true)
+LOCAL_CFLAGS += -DQTI_FLAC_DECODER
+endif
+endif
+
 LOCAL_CLANG := true
 LOCAL_SANITIZE := unsigned-integer-overflow signed-integer-overflow
 
+# FFMPEG plugin
+LOCAL_C_INCLUDES += $(TOP)/external/stagefright-plugins/include
+
+#LOCAL_CFLAGS += -DLOG_NDEBUG=0
 LOCAL_MODULE:= libstagefright
 
 LOCAL_MODULE_TAGS := optional

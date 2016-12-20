@@ -644,6 +644,7 @@ AudioFlinger::ThreadBase::ThreadBase(const sp<AudioFlinger>& audioFlinger, audio
         mNotifiedBatteryStart(false)
 {
     memset(&mPatch, 0, sizeof(struct audio_patch));
+    mIsDirectPcm = false;
 }
 
 AudioFlinger::ThreadBase::~ThreadBase()
@@ -1457,7 +1458,13 @@ sp<AudioFlinger::EffectHandle> AudioFlinger::ThreadBase::createEffect_l(
             if (lStatus != NO_ERROR) {
                 goto Exit;
             }
-            effect->setOffloaded(mType == OFFLOAD, mId);
+
+            bool setVal = false;
+            if (mType == OFFLOAD || (mType == DIRECT && mIsDirectPcm)) {
+                setVal = true;
+            }
+
+            effect->setOffloaded(setVal, mId);
 
             lStatus = chain->addEffect_l(effect);
             if (lStatus != NO_ERROR) {
@@ -1543,7 +1550,13 @@ status_t AudioFlinger::ThreadBase::addEffect_l(const sp<EffectModule>& effect)
         return BAD_VALUE;
     }
 
-    effect->setOffloaded(mType == OFFLOAD, mId);
+    bool setval = false;
+
+    if ((mType == OFFLOAD) || (mType == DIRECT && mIsDirectPcm)) {
+        setval = true;
+    }
+
+    effect->setOffloaded(setval, mId);
 
     status_t status = chain->addEffect_l(effect);
     if (status != NO_ERROR) {
@@ -3236,7 +3249,8 @@ bool AudioFlinger::PlaybackThread::threadLoop()
             }
 
             // only process effects if we're going to write
-            if (mSleepTimeUs == 0 && mType != OFFLOAD) {
+            if (mSleepTimeUs == 0 && mType != OFFLOAD &&
+                !(mType == DIRECT && mIsDirectPcm)) {
                 for (size_t i = 0; i < effectChains.size(); i ++) {
                     effectChains[i]->process_l();
                 }
@@ -3246,7 +3260,7 @@ bool AudioFlinger::PlaybackThread::threadLoop()
         // was read from audio track: process only updates effect state
         // and thus does have to be synchronized with audio writes but may have
         // to be called while waiting for async write callback
-        if (mType == OFFLOAD) {
+        if ((mType == OFFLOAD) || (mType == DIRECT && mIsDirectPcm)) {
             for (size_t i = 0; i < effectChains.size(); i ++) {
                 effectChains[i]->process_l();
             }
@@ -5259,6 +5273,8 @@ void AudioFlinger::DirectOutputThread::cacheParameters_l()
         mStandbyDelayNs = 0;
     } else if ((mType == OFFLOAD) && !audio_has_proportional_frames(mFormat)) {
         mStandbyDelayNs = kOffloadStandbyDelayNs;
+    } else if (mType == DIRECT && mIsDirectPcm) {
+        mStandbyDelayNs = kOffloadStandbyDelayNs;
     } else {
         mStandbyDelayNs = microseconds(mActiveSleepTimeUs*2);
     }
@@ -5449,15 +5465,9 @@ AudioFlinger::PlaybackThread::mixer_state AudioFlinger::OffloadThread::prepareTr
         if (track->isInvalid()) {
             ALOGW("An invalidated track shouldn't be in active list");
             tracksToRemove->add(track);
-            continue;
-        }
-
-        if (track->mState == TrackBase::IDLE) {
+        } else if (track->mState == TrackBase::IDLE) {
             ALOGW("An idle track shouldn't be in active list");
-            continue;
-        }
-
-        if (track->isPausing()) {
+        } else if (track->isPausing()) {
             track->setPaused();
             if (last) {
                 if (mHwSupportsPause && !mHwPaused) {
@@ -5485,7 +5495,7 @@ AudioFlinger::PlaybackThread::mixer_state AudioFlinger::OffloadThread::prepareTr
             if (last) {
                 mFlushPending = true;
             }
-        } else if (track->isResumePending()){
+        } else if (track->isResumePending()) {
             track->resumeAck();
             if (last) {
                 if (mPausedBytesRemaining) {
